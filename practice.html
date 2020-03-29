@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<style>
+		*{
+			margin: 0px;
+		}
+		.container{
+			width: 500px;
+			height: 600px;
+			background-color:#000;
+			margin: 0 auto;
+			position: relative;
+			top:20px;
+			overflow: hidden;
+			
+
+		}
+		.plane{
+			width: 80px;
+			height: 60px;
+			background: url("./images/plane.png") no-repeat center/contain;
+			position: absolute;
+			bottom: 10px;
+			left: calc(50% - 40px);
+			
+		}
+		.enemy{
+			width: 60px;
+			height: 40px;
+			background: url("./images/plane.png") no-repeat center/ contain;
+			position: absolute;
+		    top:0px;
+		    transform: rotate(180deg);
+
+			
+		}
+		.bullet{
+			height: 20px;
+			width: 13px;
+			background-color: gold;
+			position: absolute;
+			border-radius: 50% 50% 0 0;
+			box-shadow: 0px 2px 10px red;
+		}
+		.flag{
+			position: fixed;
+			top: 80px;
+			left: 50px;
+			color: blue;
+			font-size: 30px;
+		}
+	</style>
+</head>
+<body>
+	<h1>得分：<span style="color: red" id="score">0</span></h1>
+	<audio src="音频/1.mp3" id="music"></audio>
+	<div class="container">
+		<div class="plane"></div>
+	</div>
+	<div class="flag">游戏开始</div>
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+<script>
+	var score = 0
+	var enemyDownSpeed = 100 //值用于敌方飞机下落速度
+	var bullet_fluency = 300//值用于子弹发射频率
+	var enemyCreateFluency = 800//值用于敌方生成频率
+	var bulletFlySpeed = 50//子弹飞行速度
+	var game_isPlaying = true
+	var step = 5//敌机每次下落的高度
+
+	var player = document.getElementById("music")
+	var _player = setTimeout(function(){
+		player.play()
+	},1000)
+	var calcPosition = (left,top,maxLeft,maxTop,minLeft=0,minTop=0)=>{
+		if(left<minLeft) left = minLeft
+		else if(left>maxLeft) left = maxLeft
+		if(top<minTop) top = minTop
+		else if(top>maxTop) top = maxTop
+           return{
+           	left,top
+           }
+	}
+	//按键按下
+	
+		$(window).keydown(function(e){
+            if(!game_isPlaying)  return false
+			var t = $(".plane").position().top;
+			var l = $(".plane").position().left;
+		switch(e.keyCode){
+			case 38: t-=10//飞机相对于容器的当前位置向上移动5px
+			break
+			case 40: t+=10
+			break
+			case 37: l-=10
+			break
+			case 39: l+=10
+			break
+			case 74:shoot()
+			break
+			case 13:game_isPlaying = true
+			break
+
+		}
+		//飞机不准出画面
+		var maxLeft = $(".container").innerWidth()-$(".plane").innerWidth();
+		var maxTop = $(".container").innerHeight()-$(".plane").innerHeight();
+		var position = calcPosition(l,t,maxLeft,maxTop);//飞机当前位置
+		$(".plane").css("left",position.left).css("top",position.top)
+	})
+//生成子弹
+        var endTime = new Date()
+		var shoot=()=>{
+
+			if(new Date() - endTime < bullet_fluency) return false//控制时间间隔
+
+			var top = $(".plane").position().top-20//获取飞机的位置准备赋给子弹
+			var bullet = $("<div></div>").addClass("bullet").css("top",top)//创建子弹赋值高度
+			$(".container").append(bullet)
+			var left = $(".plane").position().left+($(".plane").innerWidth()/2)-bullet.innerWidth()/2 //获取飞机位置赋给子弹
+			bullet.css("left",left)
+			endTime = new Date()//赋给新值
+	
+		}
+//子弹飞行定时器
+		var bullet_timer = setInterval(()=>{
+
+                $(".bullet").each(function(){
+                	var bullet = $(this)
+                	bullet.css("top",bullet.position().top -10)//子弹每个时间与top距离减少10
+				if (bullet.position().top<0){
+					bullet.remove()
+				}
+              })
+					
+			},bulletFlySpeed);
+
+//敌机下落定时器
+			var enemy_timer = setInterval(()=>{
+				$(".enemy").each(function(){
+					var enemy = $(this)
+                    			    
+					enemy.css("top",enemy.position().top + step)
+					if(enemy.position().top>$(".container").innerHeight()){
+						enemy.remove()
+					}
+				})	
+			},enemyDownSpeed);
+//生成敌机定时器
+		var createTimer = setInterval(()=>{
+     
+			var enemy = $("<div></div>").addClass("enemy").css("top",0)
+			$(".container").append(enemy)
+			var left = Math.round(Math.random()*($(".container").innerWidth()-$('.enemy').innerWidth()))
+			enemy.css("left",left)
+
+		},enemyCreateFluency)
+
+//获取dom节点的上下左右边距
+           var getDomTRBL = (dom)=>{
+           	var result={}
+           	result.left = dom.offsetLeft
+           	result.right = dom.offsetLeft + dom.offsetWidth
+           	result.top = dom.offsetTop
+           	result.bottom = dom.offsetTop + dom.offsetHeight
+           	return result
+           }
+		var checkCollision =(a,b)=>{
+			var a = getDomTRBL(a)
+			var b = getDomTRBL(b)
+		
+			if(a.left >=b.left && a.left<= b.right && a.top>=b.top&&a.top<b.bottom){
+				return true
+			}else if(a.left >=b.left && a.left<= b.right && a.bottom>=b.top&&a.bottom<b.bottom){
+				return true
+			}else if(a.right >=b.left && a.right<= b.right && a.bottom>=b.top&&a.bottom<b.bottom){
+				return true
+			}else if(a.right >=b.left && a.right<= b.right && a.top>=b.top&&a.top<b.bottom){
+				return true
+			}
+
+			return false
+		}
+		
+//判断碰撞的定时器
+		var checkCollisionTimer = setInterval(function(){
+			//判断飞机的碰撞
+			var plane = $(".plane").get(0)
+			$(".enemy").each(function(i , enemy){
+				if(checkCollision(plane,enemy) ||checkCollision(enemy,plane) ){
+					console.log("撞了")
+					stopGame()
+				}
+				//判断子弹与敌机的碰撞
+				$(".bullet").each(function(i,bullet){
+            		if(checkCollision(enemy,bullet) ||checkCollision(bullet,enemy) ){
+				         bullet.remove()
+				         enemy.remove()
+				         score +=10;
+				         $("#score").text(score)
+				}
+			})
+			})    
+		},100)
+		//难度定时器
+		var level = setInterval(function(){
+			   if(score>0 && score%50 === 0) step+=5	
+		},1000)
+//游戏结束，关闭所有定时器
+		var stopGame = ()=>{
+			clearInterval(bullet_timer)
+			clearInterval(enemy_timer)
+			clearInterval(createTimer)
+			clearInterval(checkCollisionTimer)
+			clearInterval(level)
+			clearTimeout(_player)
+			$(".flag").text("游戏结束").css({"color":"red"})
+			game_isPlaying = false
+
+		}
+
+</script>
+
+</body>
+</html>
